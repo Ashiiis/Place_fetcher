@@ -6,6 +6,7 @@
   <option value="healthcare">Healthcare</option>
   <option value="transport">Transport</option>
   <option value="office.government">govtOffice</option>
+  //you can add more fields according to the requirement
 </select>
 <div class="autocomplete-container" id="autocomplete-container"></div>
 <div class="autocomplete-container" id="autocomplete-container-country"></div>
@@ -59,7 +60,7 @@
       var promise = new Promise((resolve, reject) => {
         currentPromiseReject = reject;
   
-        var apiKey = "3ea3bdb2917646bb85349e10bf8b96c4";
+        var apiKey = "  REPLACE_WITH_YOUR_API";
         var url = `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(currentValue)}&limit=5&apiKey=${apiKey}`;
         
         if (options.type) {
@@ -211,7 +212,7 @@
   });
   
   function fetchNearbyPlaces(lat, lon, category) {
-    var apiKey = "3ea3bdb2917646bb85349e10bf8b96c4";
+    var apiKey = "REPLACE_WITH_YOUR_API";
     var url = `https://api.geoapify.com/v2/places?categories=${category}&filter=rect:${lon-0.01},${lat-0.01},${lon+0.01},${lat+0.01}&limit=20&apiKey=${apiKey}`;
   
     fetch(url)
