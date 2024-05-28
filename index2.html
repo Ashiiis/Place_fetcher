@@ -1,0 +1,394 @@
+<div class="autocomplete-container" id="autocomplete-container-category"></div>
+<select id="category-select">
+  <option value="">Select a category</option>
+  <option value="commercial">Commercial</option>
+  <option value="education">Education</option>
+  <option value="healthcare">Healthcare</option>
+  <option value="transport">Transport</option>
+  <option value="office.government">govtOffice</option>
+</select>
+<div class="autocomplete-container" id="autocomplete-container"></div>
+<div class="autocomplete-container" id="autocomplete-container-country"></div>
+<div class="autocomplete-container" id="autocomplete-container-city"></div>
+<!-- Add more categories as needed -->
+
+
+<script>
+  function addressAutocomplete(containerElement, callback, options) {
+    // create input element
+    var inputElement = document.createElement("input");
+    inputElement.setAttribute("type", "text");
+    inputElement.setAttribute("placeholder", options.placeholder);
+    containerElement.appendChild(inputElement);
+  
+    // add input field clear button
+    var clearButton = document.createElement("div");
+    clearButton.classList.add("clear-button");
+    addIcon(clearButton);
+    clearButton.addEventListener("click", (e) => {
+      e.stopPropagation();
+      inputElement.value = '';
+      callback(null);
+      clearButton.classList.remove("visible");
+      closeDropDownList();
+    });
+    containerElement.appendChild(clearButton);
+  
+    var currentItems;
+    var currentPromiseReject;
+    var focusedItemIndex;
+  
+    inputElement.addEventListener("input", function(e) {
+      var currentValue = this.value;
+  
+      closeDropDownList();
+  
+      if (currentPromiseReject) {
+        currentPromiseReject({
+          canceled: true
+        });
+      }
+  
+      if (!currentValue) {
+        clearButton.classList.remove("visible");
+        return false;
+      }
+  
+      clearButton.classList.add("visible");
+  
+      var promise = new Promise((resolve, reject) => {
+        currentPromiseReject = reject;
+  
+        var apiKey = "3ea3bdb2917646bb85349e10bf8b96c4";
+        var url = `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(currentValue)}&limit=5&apiKey=${apiKey}`;
+        
+        if (options.type) {
+          url += `&type=${options.type}`;
+        }
+  
+        fetch(url)
+          .then(response => {
+            if (response.ok) {
+              response.json().then(data => resolve(data));
+            } else {
+              response.json().then(data => reject(data));
+            }
+          });
+      });
+  
+      promise.then((data) => {
+        currentItems = data.features;
+  
+        var autocompleteItemsElement = document.createElement("div");
+        autocompleteItemsElement.setAttribute("class", "autocomplete-items");
+        containerElement.appendChild(autocompleteItemsElement);
+  
+        data.features.forEach((feature, index) => {
+          var itemElement = document.createElement("DIV");
+          itemElement.innerHTML = feature.properties.formatted;
+  
+          itemElement.addEventListener("click", function(e) {
+            inputElement.value = currentItems[index].properties.formatted;
+            callback(currentItems[index]);
+            closeDropDownList();
+          });
+  
+          autocompleteItemsElement.appendChild(itemElement);
+        });
+      }, (err) => {
+        if (!err.canceled) {
+          console.log(err);
+        }
+      });
+    });
+  
+    inputElement.addEventListener("keydown", function(e) {
+      var autocompleteItemsElement = containerElement.querySelector(".autocomplete-items");
+      if (autocompleteItemsElement) {
+        var itemElements = autocompleteItemsElement.getElementsByTagName("div");
+        if (e.keyCode == 40) {
+          e.preventDefault();
+          focusedItemIndex = focusedItemIndex !== itemElements.length - 1 ? focusedItemIndex + 1 : 0;
+          setActive(itemElements, focusedItemIndex);
+        } else if (e.keyCode == 38) {
+          e.preventDefault();
+          focusedItemIndex = focusedItemIndex !== 0 ? focusedItemIndex - 1 : focusedItemIndex = (itemElements.length - 1);
+          setActive(itemElements, focusedItemIndex);
+        } else if (e.keyCode == 13) {
+          e.preventDefault();
+          if (focusedItemIndex > -1) {
+            closeDropDownList();
+          }
+        }
+      } else {
+        if (e.keyCode == 40) {
+          var event = document.createEvent('Event');
+          event.initEvent('input', true, true);
+          inputElement.dispatchEvent(event);
+        }
+      }
+    });
+  
+    function setActive(items, index) {
+      if (!items || !items.length) return false;
+  
+      for (var i = 0; i < items.length; i++) {
+        items[i].classList.remove("autocomplete-active");
+      }
+  
+      items[index].classList.add("autocomplete-active");
+  
+      inputElement.value = currentItems[index].properties.formatted;
+      callback(currentItems[index]);
+    }
+  
+    function closeDropDownList() {
+      var autocompleteItemsElement = containerElement.querySelector(".autocomplete-items");
+      if (autocompleteItemsElement) {
+        containerElement.removeChild(autocompleteItemsElement);
+      }
+  
+      focusedItemIndex = -1;
+    }
+  
+    function addIcon(buttonElement) {
+      var svgElement = document.createElementNS("http://www.w3.org/2000/svg", 'svg');
+      svgElement.setAttribute('viewBox', "0 0 24 24");
+      svgElement.setAttribute('height', "24");
+  
+      var iconElement = document.createElementNS("http://www.w3.org/2000/svg", 'path');
+      iconElement.setAttribute("d", "M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z");
+      iconElement.setAttribute('fill', 'currentColor');
+      svgElement.appendChild(iconElement);
+      buttonElement.appendChild(svgElement);
+    }
+    
+    document.addEventListener("click", function(e) {
+      if (e.target !== inputElement) {
+        closeDropDownList();
+      } else if (!containerElement.querySelector(".autocomplete-items")) {
+        var event = document.createEvent('Event');
+        event.initEvent('input', true, true);
+        inputElement.dispatchEvent(event);
+      }
+    });
+  }
+  
+  addressAutocomplete(document.getElementById("autocomplete-container"), (data) => {
+    if (data) {
+      document.getElementById("autocomplete-container-country").querySelector("input").value = data.properties.country || "";
+      document.getElementById("autocomplete-container-city").querySelector("input").value = data.properties.city || data.properties.town || data.properties.village || "";
+      
+      var category = document.getElementById("category-select").value;
+      fetchNearbyPlaces(data.properties.lat, data.properties.lon, category);
+    }
+  }, {
+    placeholder: "Enter an address here"
+  });
+  
+  addressAutocomplete(document.getElementById("autocomplete-container-country"), (data) => {
+    console.log("Selected country: ");
+    console.log(data);
+  }, {
+    placeholder: "Enter a country name here",
+    type: "country"
+  });
+  
+  addressAutocomplete(document.getElementById("autocomplete-container-city"), (data) => {
+    if (data) {
+      console.log("Selected city: ");
+      console.log(data);
+      
+      document.getElementById("autocomplete-container-country").querySelector("input").value = data.properties.country || "";
+      document.getElementById("autocomplete-container-city").querySelector("input").value = data.properties.city || data.properties.town || data.properties.village || "";
+      
+      var category = document.getElementById("category-select").value;
+      fetchNearbyPlaces(data.properties.lat, data.properties.lon, category);
+    }
+  }, {
+    placeholder: "Enter a city name here",
+    type: "city"
+  });
+  
+  function fetchNearbyPlaces(lat, lon, category) {
+    var apiKey = "3ea3bdb2917646bb85349e10bf8b96c4";
+    var url = `https://api.geoapify.com/v2/places?categories=${category}&filter=rect:${lon-0.01},${lat-0.01},${lon+0.01},${lat+0.01}&limit=20&apiKey=${apiKey}`;
+  
+    fetch(url)
+      .then(response => response.json())
+      .then(data => {
+        console.log(data);
+  
+        var nearbyContainer = document.getElementById("autocomplete-container-category");
+        var inputElement = nearbyContainer.querySelector("input");
+        var currentItems = data.features;
+  
+        var autocompleteItemsElement = document.createElement("div");
+        autocompleteItemsElement.setAttribute("class", "autocomplete-items");
+        nearbyContainer.appendChild(autocompleteItemsElement);
+  
+        data.features.forEach((feature, index) => {
+          var itemElement = document.createElement("DIV");
+          itemElement.innerHTML = feature.properties.name || feature.properties.formatted;
+  
+          itemElement.addEventListener("click", function(e) {
+            inputElement.value = currentItems[index].properties.name || currentItems[index].properties.formatted;
+  
+            console.log("Selected nearby place: ", currentItems[index]);
+  
+            // Save to database
+            savePlaceToDatabase(currentItems[index].properties, category);
+  
+            closeDropDownList();
+          });
+  
+          autocompleteItemsElement.appendChild(itemElement);
+        });
+  
+        function closeDropDownList() {
+          if (autocompleteItemsElement) {
+            nearbyContainer.removeChild(autocompleteItemsElement);
+          }
+        }
+  
+        inputElement.addEventListener("keydown", function(e) {
+          if (autocompleteItemsElement) {
+            var itemElements = autocompleteItemsElement.getElementsByTagName("div");
+            if (e.keyCode == 40) {
+              e.preventDefault();
+              focusedItemIndex = focusedItemIndex !== itemElements.length - 1 ? focusedItemIndex + 1 : 0;
+              setActive(itemElements, focusedItemIndex);
+            } else if (e.keyCode == 38) {
+              e.preventDefault();
+              focusedItemIndex = focusedItemIndex !== 0 ? focusedItemIndex - 1 : focusedItemIndex = (itemElements.length - 1);
+              setActive(itemElements, focusedItemIndex);
+            } else if (e.keyCode == 13) {
+              e.preventDefault();
+              if (focusedItemIndex > -1) {
+                closeDropDownList();
+              }
+            }
+          } else {
+            if (e.keyCode == 40) {
+              var event = document.createEvent('Event');
+              event.initEvent('input', true, true);
+              inputElement.dispatchEvent(event);
+            }
+          }
+        });
+  
+        function setActive(items, index) {
+          if (!items || !items.length) return false;
+  
+          for (var i = 0; i < items.length; i++) {
+            items[i].classList.remove("autocomplete-active");
+          }
+  
+          items[index].classList.add("autocomplete-active");
+  
+          inputElement.value = currentItems[index].properties.name || currentItems[index].properties.formatted;
+          console.log("Selected nearby place: ", currentItems[index]);
+        }
+      })
+      .catch(error => console.log('error', error));
+  }
+  
+  function savePlaceToDatabase(place, category) {
+    fetch('http://localhost:3000/api/savePlace', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        name: place.name,
+        formatted: place.formatted,
+        lat: place.lat,
+        lon: place.lon,
+        category: category
+      })
+    })
+    .then(response => response.json())
+    .then(data => {
+      console.log('Place saved:', data);
+    })
+    .catch(error => {
+      console.error('Error saving place:', error);
+    });
+  }
+  
+</script>
+
+<style>
+    body {
+        font: 16px;
+        background: #f3f5f6;
+      }
+      
+      .autocomplete-container {
+        /*the container must be positioned relative:*/
+        position: relative;
+        
+        margin-bottom: 20px;
+      }
+      
+      .autocomplete-container input {
+        width: calc(100% - 43px);
+        outline: none;
+        
+        border: 1px solid rgba(0, 0, 0, 0.2);
+        padding: 10px;
+        padding-right: 31px;
+        font-size: 16px;
+      }
+      
+      .autocomplete-items {
+        position: absolute;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        box-shadow: 0px 2px 10px 2px rgba(0, 0, 0, 0.1);
+        border-top: none;
+        z-index: 99;
+        /*position the autocomplete items to be the same width as the container:*/
+        top: calc(100% + 2px);
+        left: 0;
+        right: 0;
+        
+        background-color: #fff;
+      }
+      
+      .autocomplete-items div {
+        padding: 10px;
+        cursor: pointer;
+      }
+      
+      .autocomplete-items div:hover {
+        /*when hovering an item:*/
+        background-color: rgba(0, 0, 0, 0.1);
+      }
+      
+      .autocomplete-items .autocomplete-active {
+        /*when navigating through the items using the arrow keys:*/
+        background-color: rgba(0, 0, 0, 0.1);
+      }
+      
+      .clear-button {
+        color: rgba(0, 0, 0, 0.4);
+        cursor: pointer;
+        
+        position: absolute;
+        right: 5px;
+        top: 0;
+      
+        height: 100%;
+        display: none;
+        align-items: center;
+      }
+      
+      .clear-button.visible {
+        display: flex;
+      }
+      
+      
+      .clear-button:hover {
+        color: rgba(0, 0, 0, 0.6);
+      }
+</style>
